@@ -55,6 +55,7 @@ export function ProfileAvatar({
   const py = heightProp ?? SIZE_MAP[size];
   const initials = getInitials(name);
   const showImage = Boolean(imageUrl && !error);
+  const imageSrc = imageUrl ?? "";
 
   return (
     <div
@@ -64,7 +65,7 @@ export function ProfileAvatar({
       )}
       style={{ width: px, height: py }}
     >
-      {showImage ? (
+      {showImage && imageSrc ? (
         <>
           {!loaded && (
             <span
@@ -75,7 +76,7 @@ export function ProfileAvatar({
             </span>
           )}
           <Image
-            src={imageUrl}
+            src={imageSrc}
             alt={name ? `${name} profile` : "Profile"}
             width={px}
             height={py}

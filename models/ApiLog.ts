@@ -62,11 +62,14 @@ export interface ApiLogPublic {
 
 export const API_LOGS_COLLECTION = "api_logs";
 
+/** Index key spec: field -> 1 (asc) or -1 (desc). No optional keys so MongoDB types accept it. */
+type IndexKeySpec = Record<string, 1 | -1>;
+
 /**
  * Index definitions — call ensureApiLogIndexes() once on startup
  * or on first log insertion.
  */
-export const API_LOGS_INDEX_SPECS = [
+export const API_LOGS_INDEX_SPECS: { key: IndexKeySpec; name: string }[] = [
     { key: { userId: 1, createdAt: -1 }, name: "userId_createdAt" },
     { key: { createdAt: -1 }, name: "createdAt" },
     { key: { status: 1, createdAt: -1 }, name: "status_createdAt" },

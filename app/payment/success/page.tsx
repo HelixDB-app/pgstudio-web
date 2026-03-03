@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,7 +22,7 @@ function discordLabel(access: string) {
 const POLL_INTERVAL_MS = 1500;
 const MAX_POLLS = 8;
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const sessionId = searchParams.get("session_id");
@@ -271,5 +271,31 @@ export default function PaymentSuccessPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function PaymentSuccessFallback() {
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4">
+            <div className="relative">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+                    <Database className="h-10 w-10 text-primary" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-background bg-card p-1.5">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+            </div>
+            <div className="text-center space-y-1">
+                <h2 className="text-xl font-semibold">Loading…</h2>
+            </div>
+        </div>
+    );
+}
+
+export default function PaymentSuccessPage() {
+    return (
+        <Suspense fallback={<PaymentSuccessFallback />}>
+            <PaymentSuccessContent />
+        </Suspense>
     );
 }
