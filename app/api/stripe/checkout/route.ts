@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/$/, "");
+        const appUrl = (process.env.NEXT_PUBLIC_WEB_APP_URL || "http://localhost:3001").replace(/\/$/, "");
         const currency = (plan.currency || "usd").toLowerCase().slice(0, 3);
 
         const user = await db.collection<UserDocument>(USERS_COLLECTION).findOne({ _id: new ObjectId(userId) });

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001").replace(/\/$/, "");
+        const appUrl = (process.env.NEXT_PUBLIC_WEB_APP_URL || "http://localhost:3001").replace(/\/$/, "");
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: customerId,
             return_url: `${appUrl}/profile`,
