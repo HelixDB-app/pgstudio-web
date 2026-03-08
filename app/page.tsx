@@ -33,6 +33,7 @@ import {
   Layout,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { CollaborationLaunchpad } from "@/components/collaboration-launchpad";
 
 const features = [
   {
@@ -189,6 +190,7 @@ function Home() {
     <div ref={container}>
       <main>
         <Hero />
+        <CollaborationLaunchpad />
         <BentoFeatures />
         <PerformanceComparisonSection />
         <DataQueryingSection />
@@ -755,4 +757,3 @@ function Footer() {
     </footer>
   );
 }
-
