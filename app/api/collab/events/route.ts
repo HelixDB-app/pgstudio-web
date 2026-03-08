@@ -80,8 +80,8 @@ export async function POST(req: NextRequest) {
             : "UTC";
         const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "";
         const invitedEmails = Array.isArray(body.invitedEmails)
-            ? body.invitedEmails
-                .filter((value) => typeof value === "string")
+            ? (body.invitedEmails as unknown[])
+                .filter((value): value is string => typeof value === "string")
                 .map((value) => value.trim().toLowerCase())
                 .filter((value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value))
                 .slice(0, 200)
