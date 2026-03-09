@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/get-user-id";
 
-const WEB_BASE_URL = (process.env.NEXT_PUBLIC_WEB_APP_URL ?? "http://localhost:3001").replace(/\/$/, "");
+const WEB_BASE_URL = (process.env.NEXT_PUBLIC_WEB_APP_URL ?? "https://pgstudio-web.vercel.app").replace(/\/$/, "");
 
 function normalizeRoomId(input?: string): string {
     if (!input) return "";

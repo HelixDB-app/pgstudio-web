@@ -8,7 +8,7 @@ import {
     type CollaborationEventDocument,
 } from "@/models/CollaborationEvent";
 
-const WEB_BASE_URL = (process.env.NEXT_PUBLIC_WEB_APP_URL ?? "http://localhost:3001").replace(/\/$/, "");
+const WEB_BASE_URL = (process.env.NEXT_PUBLIC_WEB_APP_URL ?? "https://pgstudio-web.vercel.app").replace(/\/$/, "");
 
 function normalizeRoomId(input?: string): string {
     if (!input) return "";
