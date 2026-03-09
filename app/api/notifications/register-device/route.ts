@@ -3,8 +3,15 @@ import { getServerSession } from "next-auth";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import { getCorsHeaders } from "@/lib/cors";
 import { DEVICE_TOKENS_COLLECTION, type DevicePlatform, type DeviceOS } from "@/models/Notification";
 import { authOptions } from "@/lib/auth";
+
+function withCors(res: NextResponse, req: NextRequest): NextResponse {
+    const origin = req.headers.get("origin");
+    Object.entries(getCorsHeaders(origin ?? null)).forEach(([k, v]) => res.headers.set(k, v));
+    return res;
+}
 
 async function getUserId(req: NextRequest): Promise<string | null> {
     // Try NextAuth session first
@@ -28,10 +35,18 @@ async function getUserId(req: NextRequest): Promise<string | null> {
     return null;
 }
 
+export async function OPTIONS(req: NextRequest) {
+    const origin = req.headers.get("origin");
+    return new NextResponse(null, {
+        status: 204,
+        headers: getCorsHeaders(origin ?? null),
+    });
+}
+
 export async function POST(req: NextRequest) {
     const userId = await getUserId(req);
     if (!userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return withCors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), req);
     }
 
     const body = await req.json();
@@ -40,7 +55,7 @@ export async function POST(req: NextRequest) {
     const token = (body.token ?? `desktop-${userId}`) as string;
 
     if (!["web", "desktop"].includes(platform)) {
-        return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
+        return withCors(NextResponse.json({ error: "Invalid platform" }, { status: 400 }), req);
     }
 
     try {
@@ -57,19 +72,19 @@ export async function POST(req: NextRequest) {
             { upsert: true }
         );
 
-        return NextResponse.json({ ok: true });
+        return withCors(NextResponse.json({ ok: true }), req);
     } catch (err) {
         console.error("[register-device]", err);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+        return withCors(NextResponse.json({ error: "Internal error" }, { status: 500 }), req);
     }
 }
 
 export async function DELETE(req: NextRequest) {
     const userId = await getUserId(req);
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!userId) return withCors(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), req);
 
     const { token } = await req.json();
-    if (!token) return NextResponse.json({ error: "token required" }, { status: 400 });
+    if (!token) return withCors(NextResponse.json({ error: "token required" }, { status: 400 }), req);
 
     const client = await clientPromise;
     const db = client.db();
@@ -77,5 +92,5 @@ export async function DELETE(req: NextRequest) {
         .collection(DEVICE_TOKENS_COLLECTION)
         .deleteOne({ userId: new ObjectId(userId), token });
 
-    return NextResponse.json({ ok: true });
+    return withCors(NextResponse.json({ ok: true }), req);
 }

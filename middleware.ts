@@ -1,32 +1,11 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { NextRequestWithAuth, withAuth } from "next-auth/middleware";
-
-// Allowed origins for CORS (desktop app dev + production Tauri/web)
-const CORS_ORIGINS = [
-    "http://localhost:3000", // pgStudio desktop dev (Tauri webview)
-    "http://127.0.0.1:3000",
-    "https://pgstudio-web.vercel.app"
-].concat(
-    process.env.NEXT_PUBLIC_WEB_APP_URL
-        ? [process.env.NEXT_PUBLIC_WEB_APP_URL.replace(/\/$/, "")]
-        : []
-);
-
-function corsHeaders(origin: string | null): Record<string, string> {
-    const allowOrigin =
-        origin && CORS_ORIGINS.includes(origin) ? origin : CORS_ORIGINS[0];
-    return {
-        "Access-Control-Allow-Origin": allowOrigin,
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Max-Age": "86400",
-    };
-}
+import { getCorsHeaders } from "@/lib/cors";
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
     if (req.nextUrl.pathname.startsWith("/api")) {
         const origin = req.headers.get("origin");
-        const headers = corsHeaders(origin ?? null);
+        const headers = getCorsHeaders(origin ?? null);
         if (req.method === "OPTIONS") {
             return new NextResponse(null, { status: 204, headers });
         }
