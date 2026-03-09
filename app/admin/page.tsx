@@ -8,7 +8,7 @@ import {
     Ban, RotateCcw, UserX, LogIn, Search, Filter, Star, Tag,
     ChevronLeft, ChevronRight, ExternalLink, Timer, ToggleLeft, ToggleRight,
     Activity, MonitorSmartphone, Clock, BarChart2, Download, Zap, TrendingUp,
-    CheckCircle2, XCircle, AlertCircle, KanbanSquare,
+    CheckCircle2, XCircle, AlertCircle, KanbanSquare, ClipboardList,
 } from "lucide-react";
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PlanPublic } from "@/models/Plan";
 import type { CampaignPublic } from "@/models/Campaign";
 import type { NotificationPublic, NotificationType, NotificationSegment } from "@/models/Notification";
@@ -48,6 +49,22 @@ interface AdminUser {
         status: string;
         endDate: string;
     } | null;
+}
+
+interface SurveyCompletionItem {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+    provider: string;
+    surveyCompletedAt: string;
+    surveyAnswers: {
+        howDidYouHear?: string;
+        primaryReason?: string;
+        userType?: string;
+        featureInterest?: string;
+        mainDatabase?: string;
+    };
 }
 
 const DISCORD_OPTIONS = [
@@ -1199,6 +1216,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const [usersPages, setUsersPages] = useState(1);
     const [viewUserId, setViewUserId] = useState<string | null>(null);
 
+    // Survey completions
+    const [surveyCompletions, setSurveyCompletions] = useState<SurveyCompletionItem[]>([]);
+    const [loadingSurveyCompletions, setLoadingSurveyCompletions] = useState(false);
+    const [surveyPage, setSurveyPage] = useState(1);
+    const [surveyTotal, setSurveyTotal] = useState(0);
+    const [surveyPages, setSurveyPages] = useState(1);
+    const [surveySearch, setSurveySearch] = useState("");
+
     // Trial
     const [trialSettings, setTrialSettings] = useState<{ trialEnabled: boolean; trialDurationDays: number } | null>(null);
     const [trialStats, setTrialStats] = useState<{ total: number; active: number; expired: number; blocked: number } | null>(null);
@@ -1287,6 +1312,21 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             }
         } finally { setLoadingUsers(false); }
     }, [userSearch, userSubFilter, userActiveFilter]);
+
+    const fetchSurveyCompletions = useCallback(async (page = 1) => {
+        setLoadingSurveyCompletions(true);
+        try {
+            const params = new URLSearchParams({ page: String(page), limit: "25" });
+            if (surveySearch.trim()) params.set("search", surveySearch.trim());
+            const r = await fetch(`/api/admin/survey-completions?${params}`);
+            if (r.ok) {
+                const d = await r.json();
+                setSurveyCompletions(d.list ?? []);
+                setSurveyTotal(d.total ?? 0);
+                setSurveyPages(d.pages ?? 1);
+            }
+        } finally { setLoadingSurveyCompletions(false); }
+    }, [surveySearch]);
 
     const fetchTrialData = useCallback(async () => {
         setLoadingTrial(true);
@@ -1442,6 +1482,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                         </TabsTrigger>
                         <TabsTrigger value="users" className="gap-2" onClick={() => { if (!loadingUsers && users.length === 0) fetchUsers(); }}>
                             <Users className="h-4 w-4" /> Users
+                        </TabsTrigger>
+                        <TabsTrigger value="survey" className="gap-2" onClick={() => { if (!loadingSurveyCompletions && surveyCompletions.length === 0) fetchSurveyCompletions(1); }}>
+                            <ClipboardList className="h-4 w-4" /> Survey
                         </TabsTrigger>
                         <TabsTrigger value="trial" className="gap-2" onClick={() => { if (!trialStats) fetchTrialData(); }}>
                             <Timer className="h-4 w-4" /> Free Trial
@@ -1819,6 +1862,112 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
+                    {/* ── Survey Completions Tab ─────────────────────────────── */}
+                    <TabsContent value="survey">
+                        <Card className="border-border/50">
+                            <CardHeader className="pb-4">
+                                <div className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-base">Survey Completions</CardTitle>
+                                        <CardDescription>Users who completed the onboarding survey</CardDescription>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => fetchSurveyCompletions(surveyPage)}>
+                                        <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+                                    </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-3">
+                                    <div className="relative flex-1 min-w-[180px]">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Input
+                                            className="pl-8 h-8 text-xs"
+                                            placeholder="Search name or email…"
+                                            value={surveySearch}
+                                            onChange={(e) => setSurveySearch(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === "Enter") { setSurveyPage(1); fetchSurveyCompletions(1); } }}
+                                        />
+                                    </div>
+                                    <Button size="sm" variant="outline" className="h-8" onClick={() => { setSurveyPage(1); fetchSurveyCompletions(1); }}>
+                                        <Filter className="h-3.5 w-3.5 mr-1" /> Apply
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingSurveyCompletions ? (
+                                    <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                                ) : surveyCompletions.length === 0 ? (
+                                    <div className="py-12 text-center text-muted-foreground">
+                                        <ClipboardList className="h-8 w-8 mx-auto mb-3 opacity-40" />
+                                        <p className="text-sm">No survey completions yet.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-4">
+                                            {surveyCompletions.map((item) => (
+                                                <Card key={item.id} className="border-border/50 overflow-hidden">
+                                                    <CardHeader className="pb-3">
+                                                        <div className="flex flex-wrap items-start gap-3">
+                                                            <Avatar className="h-10 w-10 shrink-0">
+                                                                {item.image ? <AvatarImage src={item.image} alt="" /> : null}
+                                                                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                                                    {item.name?.[0]?.toUpperCase() ?? "?"}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <span className="font-medium text-sm">{item.name || "—"}</span>
+                                                                    <Badge variant="secondary" className="text-[10px]">{item.provider}</Badge>
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground truncate mt-0.5">{item.email}</p>
+                                                                <p className="text-[11px] text-muted-foreground mt-1">
+                                                                    Completed {item.surveyCompletedAt ? new Date(item.surveyCompletedAt).toLocaleString() : "—"}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent className="pt-0">
+                                                        <Separator className="mb-3" />
+                                                        <dl className="grid gap-2 sm:grid-cols-2 text-sm">
+                                                            {item.surveyAnswers.howDidYouHear && (
+                                                                <div><dt className="text-muted-foreground font-normal">How did you hear?</dt><dd className="font-medium mt-0.5">{item.surveyAnswers.howDidYouHear}</dd></div>
+                                                            )}
+                                                            {item.surveyAnswers.primaryReason && (
+                                                                <div><dt className="text-muted-foreground font-normal">Primary reason</dt><dd className="font-medium mt-0.5">{item.surveyAnswers.primaryReason}</dd></div>
+                                                            )}
+                                                            {item.surveyAnswers.userType && (
+                                                                <div><dt className="text-muted-foreground font-normal">User type</dt><dd className="font-medium mt-0.5">{item.surveyAnswers.userType}</dd></div>
+                                                            )}
+                                                            {item.surveyAnswers.featureInterest && (
+                                                                <div><dt className="text-muted-foreground font-normal">Feature interest</dt><dd className="font-medium mt-0.5">{item.surveyAnswers.featureInterest}</dd></div>
+                                                            )}
+                                                            {item.surveyAnswers.mainDatabase && (
+                                                                <div><dt className="text-muted-foreground font-normal">Main database</dt><dd className="font-medium mt-0.5">{item.surveyAnswers.mainDatabase}</dd></div>
+                                                            )}
+                                                        </dl>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center justify-between mt-4">
+                                            <p className="text-xs text-muted-foreground">{surveyTotal} total</p>
+                                            <div className="flex items-center gap-3">
+                                                <Button variant="outline" size="sm" disabled={surveyPage <= 1}
+                                                    onClick={() => { const p = surveyPage - 1; setSurveyPage(p); fetchSurveyCompletions(p); }}>
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <span className="text-xs text-muted-foreground">Page {surveyPage} of {surveyPages}</span>
+                                                <Button variant="outline" size="sm" disabled={surveyPage >= surveyPages}
+                                                    onClick={() => { const p = surveyPage + 1; setSurveyPage(p); fetchSurveyCompletions(p); }}>
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
                     {/* ── Trial Tab ──────────────────────────────────────────── */}
                     <TabsContent value="trial">
                         {loadingTrial && !trialStats ? (

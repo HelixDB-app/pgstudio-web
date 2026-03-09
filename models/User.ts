@@ -17,6 +17,17 @@ export interface UserDocument {
     suspendedAt?: Date;           // set when account is suspended
     deletedAt?: Date;             // soft delete timestamp
     lastLoginAt?: Date;           // updated on each successful login
+    // User survey (desktop onboarding)
+    surveyCompletedAt?: Date;
+    surveyAnswers?: SurveyAnswers;
+}
+
+export interface SurveyAnswers {
+    howDidYouHear?: string;
+    primaryReason?: string;
+    userType?: string;
+    featureInterest?: string;
+    mainDatabase?: string;
 }
 
 export interface UserProfile {
