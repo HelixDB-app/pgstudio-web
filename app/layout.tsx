@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { CampaignBanner } from "@/components/campaign-banner";
 import { SiteHeader } from "@/components/site-header";
 import type { CampaignPublic } from "@/models/Campaign";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,10 +46,10 @@ export default function RootLayout({
             <CampaignBanner campaign={activeCampaign} />
             <SiteHeader />
             <div className="pt-16">{children}</div>
+            <Toaster position="top-right" richColors />
           </div>
         </Providers>
       </body>
     </html>
   );
 }
-

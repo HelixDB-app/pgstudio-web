@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React from "react";
-import { Database, Download, LogOut, User } from "lucide-react";
+import { Bug, Database, Download, LogOut, User } from "lucide-react";
 import gsap from "gsap";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { useSession, signOut } from "next-auth/react";
@@ -82,6 +82,9 @@ export function SiteHeader() {
           <Link href="/changelog" className="hover:text-white transition-colors">
             Changelog
           </Link>
+          <Link href="/report-bug" className="hover:text-white transition-colors">
+            Report a Bug
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -128,6 +131,12 @@ export function SiteHeader() {
                     <span>View profile</span>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/report-bug" className="flex items-center gap-2">
+                    <Bug className="w-4 h-4" />
+                    <span>Report a bug</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/" })}
@@ -157,4 +166,3 @@ export function SiteHeader() {
     </header>
   );
 }
-

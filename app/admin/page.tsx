@@ -8,7 +8,7 @@ import {
     Ban, RotateCcw, UserX, LogIn, Search, Filter, Star, Tag,
     ChevronLeft, ChevronRight, ExternalLink, Timer, ToggleLeft, ToggleRight,
     Activity, MonitorSmartphone, Clock, BarChart2, Download, Zap, TrendingUp,
-    CheckCircle2, XCircle, AlertCircle,
+    CheckCircle2, XCircle, AlertCircle, KanbanSquare,
 } from "lucide-react";
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -25,6 +25,7 @@ import type { PlanPublic } from "@/models/Plan";
 import type { CampaignPublic } from "@/models/Campaign";
 import type { NotificationPublic, NotificationType, NotificationSegment } from "@/models/Notification";
 import type { ReleaseNotePublic, ReleaseTag } from "@/models/ReleaseNote";
+import { BugReportsKanbanBoard } from "@/components/admin/bug-reports-kanban";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1433,6 +1434,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                         <TabsTrigger value="notifications" className="gap-2" onClick={() => { if (!loadingNotifs && notifications.length === 0) fetchNotifications(); }}>
                             <Bell className="h-4 w-4" /> Notifications
                         </TabsTrigger>
+                        <TabsTrigger value="bug-reports" className="gap-2">
+                            <KanbanSquare className="h-4 w-4" /> Bug Reports
+                        </TabsTrigger>
                         <TabsTrigger value="release-notes" className="gap-2" onClick={() => { if (!loadingNotes && releaseNotes.length === 0) fetchReleaseNotes(); }}>
                             <BookOpen className="h-4 w-4" /> Release Notes
                         </TabsTrigger>
@@ -1627,6 +1631,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 )}
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* ── Bug Reports Tab ───────────────────────────────────── */}
+                    <TabsContent value="bug-reports">
+                        <BugReportsKanbanBoard />
                     </TabsContent>
 
                     {/* ── Release Notes Tab ──────────────────────────────────── */}

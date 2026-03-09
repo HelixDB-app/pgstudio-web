@@ -12,7 +12,8 @@ export type AuditAction =
     | "notification.retry"
     | "release_note.create"
     | "release_note.update"
-    | "release_note.delete";
+    | "release_note.delete"
+    | "bug_report.status_update";
 
 export interface AdminAuditLogDocument {
     _id?: ObjectId;
