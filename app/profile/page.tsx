@@ -508,36 +508,6 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
-            {/* Nav */}
-            <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-                <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-                            <Database className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <span className="font-semibold text-sm">pgStudio</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
-                            <Link href="/">Home</Link>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-2 text-muted-foreground"
-                            onClick={handleLogout}
-                            disabled={loggingOut}
-                        >
-                            {loggingOut ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <LogOut className="h-4 w-4" />
-                            )}
-                            Sign Out
-                        </Button>
-                    </div>
-                </div>
-            </header>
 
             <main className="mx-auto max-w-4xl space-y-5 p-6">
                 {/* Profile Hero */}

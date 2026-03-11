@@ -228,37 +228,6 @@ export default function PricingPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Nav */}
-            <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-                <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
-                            <Link href="/">
-                                <ArrowLeft className="h-4 w-4" />
-                                Back
-                            </Link>
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                            <Database className="h-4 w-4 text-primary" />
-                        </div>
-                        <span className="font-bold tracking-tight">pgStudio</span>
-                    </div>
-                    <div className="w-24 flex justify-end">
-                        {status === "authenticated" ? (
-                            <Button variant="outline" size="sm" asChild>
-                                <Link href="/profile">My Account</Link>
-                            </Button>
-                        ) : (
-                            <Button size="sm" asChild>
-                                <Link href="/login">Sign In</Link>
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </header>
-
             <main className="mx-auto max-w-6xl px-4 py-16">
                 {/* Hero */}
                 <div className="text-center mb-14">

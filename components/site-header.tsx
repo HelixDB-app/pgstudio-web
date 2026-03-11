@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Bug, Database, Download, LogOut, User } from "lucide-react";
 import gsap from "gsap";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
@@ -16,6 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 gsap.registerPlugin(ScrollToPlugin);
 
@@ -43,17 +45,33 @@ export function SiteHeader() {
     }
   };
 
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="fixed top-0 w-full z-50 border-b border-white/5 bg-black/50 backdrop-blur-xl">
+    <header className={cn("fixed top-14 w-full z-50 border-b border-white/5 duration-300 ease-in-out bg-black/50 backdrop-blur-xl", scrollY > 14 ? "top-0" : "top-14")}>
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex items-center gap-2 text-white font-semibold text-lg tracking-tight"
+          className="flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity shrink-0"
           aria-label="pgStudio home"
         >
-          <div className="w-6 h-6 rounded bg-white text-black flex items-center justify-center">
-            <Database className="w-3.5 h-3.5" />
-          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+            <Image
+              src="/logo/logo.png"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain"
+            />
+          </span>
           <span>pgStudio</span>
         </Link>
 
