@@ -35,9 +35,16 @@ export async function GET(req: NextRequest) {
     if (record.state === "active" && record.trialExpiryDate < now) {
         await col.updateOne(
             { deviceId },
-            { $set: { state: "expired", updatedAt: now } }
+            { $set: { state: "expired", trialUsed: true, updatedAt: now } }
         );
         record.state = "expired";
+        record.trialUsed = true;
+    } else if ((record.state === "expired" || record.state === "blocked") && !record.trialUsed) {
+        await col.updateOne(
+            { deviceId },
+            { $set: { trialUsed: true, updatedAt: now } }
+        );
+        record.trialUsed = true;
     }
 
     return NextResponse.json({ trial: deviceTrialToPublic(record), exists: true });

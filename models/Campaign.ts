@@ -8,6 +8,9 @@ export interface CampaignDocument {
     description: string;
     discountPercentage: number;
     badgeText?: string;
+    couponCode?: string;
+    stripeCouponId?: string;
+    firstTimeOnly?: boolean;
     posterPath?: string;
     startDate: Date;
     endDate: Date;
@@ -22,6 +25,9 @@ export interface CampaignPublic {
     description: string;
     discountPercentage: number;
     badgeText?: string;
+    couponCode?: string;
+    stripeCouponId?: string;
+    firstTimeOnly?: boolean;
     posterPath?: string;
     startDate: string;
     endDate: string;
@@ -34,6 +40,9 @@ export function campaignToPublic(doc: CampaignDocument): CampaignPublic {
         description: doc.description,
         discountPercentage: doc.discountPercentage,
         badgeText: doc.badgeText,
+        couponCode: doc.couponCode,
+        stripeCouponId: doc.stripeCouponId,
+        firstTimeOnly: doc.firstTimeOnly,
         posterPath: doc.posterPath,
         startDate: doc.startDate.toISOString(),
         endDate: doc.endDate.toISOString(),

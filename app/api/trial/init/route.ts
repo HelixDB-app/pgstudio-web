@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
+import { ObjectId, type Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import {
     DEVICE_TRIALS_COLLECTION,
@@ -9,6 +10,7 @@ import {
     type DeviceTrialDocument,
     type TrialSettingsDocument,
 } from "@/models/DeviceTrial";
+import { SUBSCRIPTIONS_COLLECTION } from "@/models/Subscription";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,28 @@ const MIN_CALL_INTERVAL_MS = 30 * 1000; // 30 seconds
 
 /** Accept only hex strings of exactly 64 characters (SHA-256) */
 const DEVICE_ID_REGEX = /^[0-9a-f]{64}$/i;
+
+async function userHasPriorTrialOrSubscription(
+    db: Db,
+    userId: string,
+    currentDeviceId?: string
+): Promise<"subscription" | "trial" | null> {
+    if (!ObjectId.isValid(userId)) return null;
+
+    const hasSubscription = await db
+        .collection(SUBSCRIPTIONS_COLLECTION)
+        .findOne({ userId: new ObjectId(userId) }, { projection: { _id: 1 } });
+    if (hasSubscription) return "subscription";
+
+    const trialMatch = await db
+        .collection<DeviceTrialDocument>(DEVICE_TRIALS_COLLECTION)
+        .findOne({
+            associatedUserId: userId,
+            ...(currentDeviceId ? { deviceId: { $ne: currentDeviceId } } : {}),
+        }, { projection: { _id: 1 } });
+
+    return trialMatch ? "trial" : null;
+}
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
@@ -84,20 +108,43 @@ export async function POST(req: NextRequest) {
 
         // ── 5b. Auto-expire if past expiry date ────────────────────────────────
         let state = existing.state;
+        let trialUsed = existing.trialUsed;
+        let message: string | undefined;
         if (state === "active" && existing.trialExpiryDate < now) {
             state = "expired";
+            trialUsed = true;
+        }
+
+        if (state === "expired" || state === "blocked") {
+            trialUsed = true;
         }
 
         // ── 5c. Associate a logged-in user if provided ─────────────────────────
         const updateFields: Partial<DeviceTrialDocument> = {
             state,
+            trialUsed,
             lastSeenIp: clientIp,
             lastRequestAt: now,
             requestCount: existing.requestCount + 1,
             updatedAt: now,
         };
-        if (body.associatedUserId && !existing.associatedUserId) {
-            updateFields.associatedUserId = body.associatedUserId;
+        if (body.associatedUserId) {
+            if (existing.associatedUserId && existing.associatedUserId !== body.associatedUserId) {
+                updateFields.state = "blocked";
+                updateFields.trialUsed = true;
+                message = "This device is already linked to another account.";
+            } else if (!existing.associatedUserId) {
+                const priorUse = await userHasPriorTrialOrSubscription(db, body.associatedUserId, deviceId);
+                if (priorUse) {
+                    updateFields.state = "blocked";
+                    updateFields.trialUsed = true;
+                    message = priorUse === "subscription"
+                        ? "You already have a subscription. Trial access isn't available."
+                        : "Free trial is available only once per account.";
+                } else {
+                    updateFields.associatedUserId = body.associatedUserId;
+                }
+            }
         }
 
         await col.updateOne({ deviceId }, { $set: updateFields });
@@ -105,6 +152,7 @@ export async function POST(req: NextRequest) {
         const updated = { ...existing, ...updateFields };
         return NextResponse.json({
             trial: deviceTrialToPublic(updated as DeviceTrialDocument),
+            ...(message ? { message } : {}),
         });
     }
 
@@ -116,6 +164,35 @@ export async function POST(req: NextRequest) {
             trialDisabled: true,
             message: "Free trial is not available",
         });
+    }
+
+    if (body.associatedUserId) {
+        const priorUse = await userHasPriorTrialOrSubscription(db, body.associatedUserId);
+        if (priorUse) {
+            const blockedRecord: DeviceTrialDocument = {
+                deviceId,
+                trialStartDate: now,
+                trialExpiryDate: now,
+                state: "blocked",
+                trialUsed: true,
+                firstSeenIp: clientIp,
+                lastSeenIp: clientIp,
+                requestCount: 1,
+                lastRequestAt: now,
+                associatedUserId: body.associatedUserId,
+                createdAt: now,
+                updatedAt: now,
+            };
+
+            await col.insertOne(blockedRecord);
+
+            return NextResponse.json({
+                trial: deviceTrialToPublic(blockedRecord),
+                message: priorUse === "subscription"
+                    ? "You already have a subscription. Trial access isn't available."
+                    : "Free trial is available only once per account.",
+            });
+        }
     }
 
     const trialExpiryDate = new Date(

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAdminAuth } from "@/lib/admin-auth";
 import {
+    DEVICE_TRIALS_COLLECTION,
     TRIAL_SETTINGS_COLLECTION,
     DEFAULT_TRIAL_SETTINGS,
     type TrialSettingsDocument,
 } from "@/models/DeviceTrial";
+import type { DeviceTrialDocument } from "@/models/DeviceTrial";
 
 export async function GET(req: NextRequest) {
     const authErr = requireAdminAuth(req);
@@ -63,6 +65,27 @@ export async function PUT(req: NextRequest) {
         },
         { upsert: true }
     );
+
+    if (typeof body.trialDurationDays === "number") {
+        const durationMs = body.trialDurationDays * 24 * 60 * 60 * 1000;
+        await db.collection<DeviceTrialDocument>(DEVICE_TRIALS_COLLECTION).updateMany(
+            { state: "active" },
+            [
+                {
+                    $set: {
+                        trialExpiryDate: {
+                            $cond: [
+                                { $gt: [{ $add: ["$trialStartDate", durationMs] }, "$trialExpiryDate"] },
+                                { $add: ["$trialStartDate", durationMs] },
+                                "$trialExpiryDate",
+                            ],
+                        },
+                        updatedAt: now,
+                    },
+                },
+            ]
+        );
+    }
 
     const saved = await db
         .collection<TrialSettingsDocument>(TRIAL_SETTINGS_COLLECTION)

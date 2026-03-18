@@ -201,8 +201,8 @@ function Home() {
     // Schema cards stagger
     gsap.from(".schema-card", {
       scrollTrigger: {
-        trigger: ".schema-sql-section",
-        start: "top 60%",
+        trigger: ".schema-group",
+        start: "top 75%",
       },
       y: 40,
       opacity: 0,
@@ -420,50 +420,47 @@ function SchemaDesignerSQLSection() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
-          <div className="schema-card bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 relative overflow-hidden group hover:border-white/10 transition-all duration-300 hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-white/10 transition-colors">
+        <div className="schema-group grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24 mb-20">
+          <div className="schema-card bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 md:p-12 relative overflow-hidden flex flex-col justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10">
               <Layout className="w-6 h-6 text-white" />
             </div>
-            <h3 className="text-xl font-medium text-white mb-4">Schema Designer</h3>
-            <p className="text-zinc-400 text-sm leading-relaxed mb-6 font-light">
+            <h3 className="text-2xl font-medium text-white mb-4">Schema Designer</h3>
+            <p className="text-zinc-400 leading-relaxed mb-6 font-light">
               Visually map out database structures with an intuitive drag-and-drop designer. Manage schemas, tables, and relationships effortlessly.
             </p>
-            <ul className="space-y-3 text-sm text-zinc-500 font-light">
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> VS Code-style file explorer</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Instant visual modeling</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Seamless table management</li>
+            <ul className="space-y-4 text-sm text-zinc-500 font-light">
+              <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> VS Code-style file explorer</li>
+              <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Instant visual modeling</li>
+              <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Seamless table management</li>
             </ul>
           </div>
 
-          <div className="schema-card bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 relative overflow-hidden group hover:border-white/10 transition-all duration-300 hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-white/10 transition-colors">
-              <Code2 className="w-6 h-6 text-white" />
+          <div className="flex flex-col gap-12 justify-center">
+            <div className="schema-card opacity-50 relative">
+              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/5">
+                <Code2 className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-xl font-medium text-white mb-3">Smart SQL Editor</h3>
+              <p className="text-zinc-500 text-sm leading-relaxed mb-4 font-light">
+                Write queries faster in a modern editor equipped with syntax highlighting, robust autocompletion, and integrated AI assistance.
+              </p>
+              <ul className="space-y-2 text-xs text-zinc-600 font-light">
+                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/10" /> AI-powered auto-complete</li>
+                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/10" /> Built-in performance insights</li>
+                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-white/10" /> Historical query tracking</li>
+              </ul>
             </div>
-            <h3 className="text-xl font-medium text-white mb-4">Smart SQL Editor</h3>
-            <p className="text-zinc-400 text-sm leading-relaxed mb-6 font-light">
-              Write queries faster in a modern editor equipped with syntax highlighting, robust autocompletion, and integrated AI assistance.
-            </p>
-            <ul className="space-y-3 text-sm text-zinc-500 font-light">
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> AI-powered auto-complete</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Built-in performance insights</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Historical query tracking</li>
-            </ul>
-          </div>
 
-          <div className="schema-card bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 relative overflow-hidden group hover:border-white/10 transition-all duration-300 hover:-translate-y-1">
-            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-white/10 transition-colors">
-              <FileText className="w-6 h-6 text-white" />
+            <div className="schema-card opacity-50 relative">
+              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/5">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-xl font-medium text-white mb-3">Rich Documentation</h3>
+              <p className="text-zinc-500 text-sm leading-relaxed mb-4 font-light">
+                Maintain Notion-style rich text documents right alongside your SQL files to document architecture and share complex logic.
+              </p>
             </div>
-            <h3 className="text-xl font-medium text-white mb-4">Rich Documentation</h3>
-            <p className="text-zinc-400 text-sm leading-relaxed mb-6 font-light">
-              Maintain Notion-style rich text documents right alongside your SQL files to document architecture and share complex logic.
-            </p>
-            <ul className="space-y-3 text-sm text-zinc-500 font-light">
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Block-based Markdown editor</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Inline AI Explain function</li>
-              <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/20" /> Unified workspace view</li>
-            </ul>
           </div>
         </div>
 
@@ -1289,22 +1286,22 @@ function Footer() {
     <footer className="border-t border-white/5 bg-black py-12">
       <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-2 text-white font-semibold tracking-tight">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity shrink-0"
-          aria-label="pgStudio home"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden">
-            <Image
-              src="/logo/logo.png"
-              alt=""
-              width={28}
-              height={28}
-              className="h-7 w-7 object-contain"
-            />
-          </span>
-          <span>pgStudio</span>
-        </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity shrink-0"
+            aria-label="pgStudio home"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+              <Image
+                src="/logo/logo.png"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
+              />
+            </span>
+            <span>pgStudio</span>
+          </Link>
         </div>
         <div className="text-sm text-zinc-600 font-light">
           © {new Date().getFullYear()} pgStudio. All rights reserved.

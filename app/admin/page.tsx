@@ -251,21 +251,46 @@ function PlanModal({ plan, onClose, onSaved }: { plan: AdminPlan | null; onClose
 // ─── Campaign Form ────────────────────────────────────────────────────────────
 
 interface CampaignFormData {
-    title: string; description: string; discountPercentage: string;
-    badgeText: string; posterPath: string; startDate: string; endDate: string; isActive: boolean;
+    title: string;
+    description: string;
+    discountPercentage: string;
+    badgeText: string;
+    couponCode: string;
+    stripeCouponId: string;
+    firstTimeOnly: boolean;
+    posterPath: string;
+    startDate: string;
+    endDate: string;
+    isActive: boolean;
 }
 
 const emptyCampaignForm = (): CampaignFormData => ({
-    title: "", description: "", discountPercentage: "0",
-    badgeText: "", posterPath: "", startDate: "", endDate: "", isActive: true,
+    title: "",
+    description: "",
+    discountPercentage: "0",
+    badgeText: "",
+    couponCode: "",
+    stripeCouponId: "",
+    firstTimeOnly: false,
+    posterPath: "",
+    startDate: "",
+    endDate: "",
+    isActive: true,
 });
 
 function campaignToForm(c: AdminCampaign): CampaignFormData {
     return {
-        title: c.title, description: c.description,
+        title: c.title,
+        description: c.description,
         discountPercentage: String(c.discountPercentage),
-        badgeText: c.badgeText || "", posterPath: c.posterPath || "",
-        startDate: c.startDate.slice(0, 10), endDate: c.endDate.slice(0, 10), isActive: true,
+        badgeText: c.badgeText || "",
+        couponCode: c.couponCode || "",
+        stripeCouponId: c.stripeCouponId || "",
+        firstTimeOnly: c.firstTimeOnly === true,
+        posterPath: c.posterPath || "",
+        startDate: c.startDate.slice(0, 10),
+        endDate: c.endDate.slice(0, 10),
+        isActive: true,
     };
 }
 
@@ -326,6 +351,12 @@ function CampaignModal({ campaign, onClose, onSaved }: { campaign: AdminCampaign
                             <Input value={form.badgeText} onChange={(e) => set("badgeText", e.target.value)} placeholder="New Year Offer" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5"><Label className="text-xs">Coupon Code</Label>
+                            <Input value={form.couponCode} onChange={(e) => set("couponCode", e.target.value)} placeholder="FIRST20" /></div>
+                        <div className="space-y-1.5"><Label className="text-xs">Stripe Coupon ID</Label>
+                            <Input value={form.stripeCouponId} onChange={(e) => set("stripeCouponId", e.target.value)} placeholder="coupon_..." /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label className="text-xs">Start Date</Label>
                             <Input type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} /></div>
                         <div className="space-y-1.5"><Label className="text-xs">End Date</Label>
@@ -343,9 +374,16 @@ function CampaignModal({ campaign, onClose, onSaved }: { campaign: AdminCampaign
                         </div>
                         {form.posterPath && <img src={form.posterPath} alt="preview" className="mt-2 max-h-32 rounded-lg object-contain border border-border/50" />}
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="h-4 w-4 rounded" />
-                        <span className="text-sm">Active</span></label>
+                    <div className="flex flex-wrap items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={form.firstTimeOnly} onChange={(e) => set("firstTimeOnly", e.target.checked)} className="h-4 w-4 rounded" />
+                            <span className="text-sm">First-time users only</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={form.isActive} onChange={(e) => set("isActive", e.target.checked)} className="h-4 w-4 rounded" />
+                            <span className="text-sm">Active</span>
+                        </label>
+                    </div>
                     {error && <p className="text-sm text-destructive">{error}</p>}
                     <div className="flex gap-2 pt-1">
                         <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
@@ -1027,8 +1065,9 @@ function ReleaseNoteModal({ note, onClose, onSaved }: {
 
 // ─── User Detail Modal ────────────────────────────────────────────────────────
 
-function UserDetailModal({ userId, onClose, onUpdated }: {
+function UserDetailModal({ userId, availablePlans, onClose, onUpdated }: {
     userId: string;
+    availablePlans: AdminPlan[];
     onClose: () => void;
     onUpdated: () => void;
 }) {
@@ -1039,6 +1078,13 @@ function UserDetailModal({ userId, onClose, onUpdated }: {
     } | null>(null);
     const [loading, setLoading] = useState(true);
     const [actioning, setActioning] = useState<string | null>(null);
+    const [assignPlanId, setAssignPlanId] = useState<string>("");
+    const [assignStartDate, setAssignStartDate] = useState<string>("");
+    const [assignDurationDays, setAssignDurationDays] = useState<string>("");
+    const [assignPaymentAmount, setAssignPaymentAmount] = useState<string>("");
+    const [assignStatus, setAssignStatus] = useState<"active" | "pending">("active");
+    const [assigning, setAssigning] = useState(false);
+    const [assignError, setAssignError] = useState<string>("");
 
     useEffect(() => {
         setLoading(true);
@@ -1047,6 +1093,29 @@ function UserDetailModal({ userId, onClose, onUpdated }: {
             .then(setData)
             .finally(() => setLoading(false));
     }, [userId]);
+
+    useEffect(() => {
+        if (!availablePlans.length || assignPlanId) return;
+        const defaultPlan = availablePlans.find((p) => p.isActive) ?? availablePlans[0];
+        setAssignPlanId(defaultPlan?.id ?? "");
+        setAssignDurationDays(String(defaultPlan?.durationDays ?? ""));
+        setAssignPaymentAmount(String(defaultPlan?.price ?? ""));
+    }, [availablePlans, assignPlanId]);
+
+    useEffect(() => {
+        if (!assignStartDate) {
+            const today = new Date().toISOString().slice(0, 10);
+            setAssignStartDate(today);
+        }
+    }, [assignStartDate]);
+
+    useEffect(() => {
+        if (!assignPlanId) return;
+        const plan = availablePlans.find((p) => p.id === assignPlanId);
+        if (!plan) return;
+        setAssignDurationDays(String(plan.durationDays));
+        setAssignPaymentAmount(String(plan.price));
+    }, [assignPlanId, availablePlans]);
 
     async function doAction(action: string) {
         setActioning(action);
@@ -1068,6 +1137,46 @@ function UserDetailModal({ userId, onClose, onUpdated }: {
     }
 
     const user = data?.user;
+    const selectedPlan = availablePlans.find((p) => p.id === assignPlanId) ?? null;
+
+    async function handleAssign() {
+        if (!assignPlanId) {
+            setAssignError("Select a plan first.");
+            return;
+        }
+        setAssigning(true);
+        setAssignError("");
+        try {
+            const payload = {
+                userId,
+                planId: assignPlanId,
+                status: assignStatus,
+                startDate: assignStartDate ? new Date(assignStartDate).toISOString() : undefined,
+                durationDays: assignDurationDays ? Number(assignDurationDays) : undefined,
+                paymentAmount: assignPaymentAmount ? Number(assignPaymentAmount) : undefined,
+                paymentCurrency: selectedPlan?.currency ?? "usd",
+            };
+            const res = await fetch("/api/admin/subscriptions/assign", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                setAssignError(d.error || "Failed to assign subscription");
+                return;
+            }
+            onUpdated();
+            setLoading(true);
+            const d = await fetch(`/api/admin/users/${userId}`).then(r => r.json());
+            setData(d);
+            setLoading(false);
+        } catch {
+            setAssignError("Network error. Please try again.");
+        } finally {
+            setAssigning(false);
+        }
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -1131,6 +1240,90 @@ function UserDetailModal({ userId, onClose, onUpdated }: {
                                     Restore
                                 </Button>
                             )}
+                        </div>
+
+                        {/* Assign Subscription */}
+                        <div className="rounded-lg border border-border/50 bg-muted/10 p-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium text-muted-foreground">ASSIGN SUBSCRIPTION</p>
+                                <Badge variant="outline" className="text-[10px]">Admin</Badge>
+                            </div>
+                            <div className="mt-3 space-y-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Plan</Label>
+                                        <select
+                                            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                                            value={assignPlanId}
+                                            onChange={(e) => setAssignPlanId(e.target.value)}
+                                        >
+                                            {availablePlans.map((p) => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Status</Label>
+                                        <select
+                                            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                                            value={assignStatus}
+                                            onChange={(e) => setAssignStatus(e.target.value as "active" | "pending")}
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="pending">Pending</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Start Date</Label>
+                                        <Input
+                                            type="date"
+                                            value={assignStartDate}
+                                            onChange={(e) => setAssignStartDate(e.target.value)}
+                                            className="h-8 text-xs"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Duration (days)</Label>
+                                        <Input
+                                            type="number"
+                                            value={assignDurationDays}
+                                            onChange={(e) => setAssignDurationDays(e.target.value)}
+                                            className="h-8 text-xs"
+                                            placeholder={selectedPlan ? String(selectedPlan.durationDays) : "30"}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Amount (cents)</Label>
+                                        <Input
+                                            type="number"
+                                            value={assignPaymentAmount}
+                                            onChange={(e) => setAssignPaymentAmount(e.target.value)}
+                                            className="h-8 text-xs"
+                                            placeholder={selectedPlan ? String(selectedPlan.price) : "0"}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Currency</Label>
+                                        <Input
+                                            value={selectedPlan?.currency?.toUpperCase() ?? "USD"}
+                                            disabled
+                                            className="h-8 text-xs"
+                                        />
+                                    </div>
+                                </div>
+                                {assignError && <p className="text-[11px] text-destructive">{assignError}</p>}
+                                <div className="flex items-center justify-between text-[10px] text-muted-foreground/70">
+                                    <span>Active/pending subscriptions are cancelled automatically.</span>
+                                    <Button size="sm" className="h-7 text-xs" onClick={handleAssign} disabled={assigning || !assignPlanId}>
+                                        {assigning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+                                        Assign
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Subscriptions */}
@@ -1581,6 +1774,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                                         <span className="font-medium text-sm">{c.title}</span>
                                                         <p className="text-xs text-muted-foreground mt-0.5">
                                                             {c.discountPercentage}% off · {c.startDate.slice(0, 10)} → {c.endDate.slice(0, 10)}
+                                                            {c.couponCode ? ` · code ${c.couponCode}` : ""}
+                                                            {c.firstTimeOnly ? " · first-time" : ""}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -2077,7 +2272,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                                 </Button>
                                             </div>
                                             <p className="text-[11px] text-muted-foreground">
-                                                Applies to <strong>new</strong> devices only. Existing trials are not affected.
+                                                Applies to <strong>new</strong> devices and extends active trials when increased. Existing trials are never shortened.
                                             </p>
 
                                             {/* Quick Presets */}
@@ -2539,7 +2734,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             {showNotifModal && <NotificationModal onClose={() => setShowNotifModal(false)} onSent={() => fetchNotifications()} />}
             {viewNotifId && <NotificationDetailModal notifId={viewNotifId} onClose={() => setViewNotifId(null)} onRetry={() => fetchNotifications(notifPage)} />}
             {editNote && <ReleaseNoteModal note={editNote === "new" ? null : editNote} onClose={() => setEditNote(null)} onSaved={() => fetchReleaseNotes(notesPage)} />}
-            {viewUserId && <UserDetailModal userId={viewUserId} onClose={() => setViewUserId(null)} onUpdated={() => fetchUsers(usersPage)} />}
+            {viewUserId && (
+                <UserDetailModal
+                    userId={viewUserId}
+                    availablePlans={plans}
+                    onClose={() => setViewUserId(null)}
+                    onUpdated={() => fetchUsers(usersPage)}
+                />
+            )}
         </div>
     );
 }

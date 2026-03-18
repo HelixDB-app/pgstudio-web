@@ -8,6 +8,7 @@ export type AuditAction =
     | "user.delete"
     | "user.restore"
     | "user.force_logout"
+    | "subscription.assign"
     | "notification.send"
     | "notification.retry"
     | "release_note.create"

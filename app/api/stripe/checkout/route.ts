@@ -6,6 +6,8 @@ import clientPromise from "@/lib/mongodb";
 import { getUserId } from "@/lib/get-user-id";
 import { PLANS_COLLECTION, type PlanDocument } from "@/models/Plan";
 import { USERS_COLLECTION, type UserDocument } from "@/models/User";
+import { CAMPAIGNS_COLLECTION, type CampaignDocument } from "@/models/Campaign";
+import { SUBSCRIPTIONS_COLLECTION } from "@/models/Subscription";
 
 const OBJECT_ID_HEX_LENGTH = 24;
 const STRIPE_METADATA_MAX_LENGTH = 500;
@@ -81,6 +83,38 @@ export async function POST(req: NextRequest) {
         const user = await db.collection<UserDocument>(USERS_COLLECTION).findOne({ _id: new ObjectId(userId) });
         const customerEmail = user?.email ?? undefined;
 
+        // ── Resolve active campaign (optional) ──────────────────────────────
+        const now = new Date();
+        const activeCampaign = await db
+            .collection<CampaignDocument>(CAMPAIGNS_COLLECTION)
+            .findOne({
+                isActive: true,
+                startDate: { $lte: now },
+                endDate: { $gte: now },
+            });
+
+        let campaignDiscount = 0;
+        let campaignCouponId: string | null = null;
+        let campaignId: string | null = null;
+        let campaignEligible = false;
+
+        if (activeCampaign && activeCampaign.discountPercentage > 0) {
+            let eligible = true;
+            if (activeCampaign.firstTimeOnly) {
+                const hasSubscription = await db
+                    .collection(SUBSCRIPTIONS_COLLECTION)
+                    .findOne({ userId: new ObjectId(userId) }, { projection: { _id: 1 } });
+                if (hasSubscription) eligible = false;
+            }
+
+            if (eligible) {
+                campaignDiscount = activeCampaign.discountPercentage;
+                campaignCouponId = activeCampaign.stripeCouponId?.trim() || null;
+                campaignId = activeCampaign._id?.toString() ?? null;
+                campaignEligible = true;
+            }
+        }
+
         // ── Resolve checkout URL ─────────────────────────────────────────────
         //
         // Priority:
@@ -115,6 +149,11 @@ export async function POST(req: NextRequest) {
             discordAccess: String(plan.discordAccess),
         };
 
+        if (campaignId) {
+            metadata.campaignId = truncateMetadata(campaignId);
+            metadata.campaignDiscount = String(campaignDiscount);
+        }
+
         const baseParams: Stripe.Checkout.SessionCreateParams = {
             mode: "payment",
             payment_method_types: ["card"],
@@ -124,13 +163,17 @@ export async function POST(req: NextRequest) {
             cancel_url: `${appUrl}/payment/failed`,
         };
 
+        const discountedAmount = campaignEligible && !campaignCouponId && !isStripePriceId
+            ? Math.max(1, Math.round(amount * (1 - campaignDiscount / 100)))
+            : amount;
+
         const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = isStripePriceId
             ? [{ price: rawPriceId, quantity: 1 }]
             : [
                   {
                       price_data: {
                           currency,
-                          unit_amount: amount,
+                          unit_amount: discountedAmount,
                           product_data: {
                               name: truncateMetadata(plan.name),
                               description: truncateMetadata(
@@ -145,6 +188,7 @@ export async function POST(req: NextRequest) {
         const session = await stripe.checkout.sessions.create({
             ...baseParams,
             line_items: lineItems,
+            ...(campaignEligible && campaignCouponId ? { discounts: [{ coupon: campaignCouponId }] } : {}),
         });
 
         if (!session.url) {

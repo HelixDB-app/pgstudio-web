@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
-    Check, Zap, Database, ChevronRight, Loader2, Star,
-    MessageSquare, Calendar, X, ArrowLeft, Sparkles,
+    Check, Zap, ChevronRight, Loader2, Star,
+    MessageSquare, Calendar, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { CampaignBanner } from "@/components/campaign-banner";
 import type { PlanPublic } from "@/models/Plan";
 import type { CampaignPublic } from "@/models/Campaign";
 
@@ -29,74 +30,35 @@ function discordLabel(access: string) {
     return null;
 }
 
-function CampaignBanner({ campaign }: { campaign: CampaignPublic }) {
-    const [visible, setVisible] = useState(true);
-    if (!visible) return null;
-    return (
-        <div className="relative overflow-hidden bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4 mb-8">
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    {campaign.posterPath ? (
-                        <img
-                            src={campaign.posterPath}
-                            alt={campaign.title}
-                            className="h-12 w-12 rounded-lg object-cover border border-primary/20 shrink-0"
-                        />
-                    ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/20 shrink-0">
-                            <Sparkles className="h-6 w-6 text-primary" />
-                        </div>
-                    )}
-                    <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-sm">{campaign.title}</p>
-                            {campaign.badgeText && (
-                                <Badge className="text-[10px] px-1.5 py-0 bg-primary text-primary-foreground">
-                                    {campaign.badgeText}
-                                </Badge>
-                            )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{campaign.description}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                    {campaign.discountPercentage > 0 && (
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-primary">{campaign.discountPercentage}%</p>
-                            <p className="text-xs text-muted-foreground">OFF</p>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => setVisible(false)}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function PlanCard({
     plan,
     onSubscribe,
     loadingPlanId,
     campaign,
+    campaignEligible,
 }: {
     plan: PlanPublic;
     onSubscribe: (planId: string) => void;
     loadingPlanId: string | null;
     campaign: CampaignPublic | null;
+    campaignEligible: boolean | null;
 }) {
     const isFree = plan.price === 0;
     const isLoading = loadingPlanId === plan.id;
-    const discountedPrice = campaign && campaign.discountPercentage > 0 && !isFree
+    const isPaymentLink = (plan.stripePriceId ?? "").startsWith("https://");
+    const canApplyCampaign = !!campaign &&
+        campaign.discountPercentage > 0 &&
+        campaignEligible !== false &&
+        !isFree &&
+        !isPaymentLink &&
+        (campaign.stripeCouponId || !plan.stripePriceId);
+
+    const discountedPrice = canApplyCampaign
         ? Math.round(plan.price * (1 - campaign.discountPercentage / 100))
         : null;
 
     return (
-        <Card className={`relative flex flex-col border-border/50 transition-all duration-200 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 ${plan.isFeatured ? "border-primary/50 ring-1 ring-primary/30 bg-gradient-to-b from-primary/5 to-card" : ""}`}>
+        <Card className={`relative flex flex-col border-border/50 transition-all duration-200 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 transform-gpu ${plan.isFeatured ? "border-primary/50 ring-1 ring-primary/30 bg-gradient-to-b from-primary/5 to-card" : ""}`}>
             {plan.isFeatured && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="flex items-center gap-1 px-3 shadow-lg">
@@ -135,6 +97,9 @@ function PlanCard({
                             </div>
                         )}
                     </div>
+                    {canApplyCampaign && campaign?.firstTimeOnly && (
+                        <p className="text-xs text-primary font-medium">First-time discount applied</p>
+                    )}
                     {plan.discount && !discountedPrice && (
                         <p className="text-xs text-primary font-medium">{plan.discount}% discount applied</p>
                     )}
@@ -183,21 +148,44 @@ function PlanCard({
 }
 
 export default function PricingPage() {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const [plans, setPlans] = useState<PlanPublic[]>([]);
     const [campaign, setCampaign] = useState<CampaignPublic | null>(null);
+    const [campaignEligible, setCampaignEligible] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+    const comparisonFeatures = useMemo(() => {
+        if (plans.length === 0) return [];
+        const featureSet = new Set<string>();
+        plans.forEach((p) => p.features.forEach((f) => featureSet.add(f)));
+        return Array.from(featureSet).slice(0, 8);
+    }, [plans]);
 
     useEffect(() => {
         Promise.all([
             fetch("/api/plans").then((r) => r.json()),
             fetch("/api/campaigns/active").then((r) => r.json()),
-        ]).then(([plansData, campaignData]) => {
-            setPlans(Array.isArray(plansData) ? plansData : []);
-            setCampaign(campaignData);
-        }).finally(() => setLoading(false));
+        ])
+            .then(([plansData, campaignData]) => {
+                setPlans(Array.isArray(plansData) ? plansData : []);
+                if (campaignData && typeof campaignData === "object" && "campaign" in campaignData) {
+                    setCampaign(campaignData.campaign ?? null);
+                    setCampaignEligible(
+                        typeof campaignData.eligible === "boolean" ? campaignData.eligible : null
+                    );
+                } else {
+                    setCampaign(campaignData ?? null);
+                    setCampaignEligible(null);
+                }
+            })
+            .catch(() => {
+                setPlans([]);
+                setCampaign(null);
+                setCampaignEligible(null);
+            })
+            .finally(() => setLoading(false));
     }, []);
 
     async function handleSubscribe(planId: string) {
@@ -244,7 +232,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Campaign Banner */}
-                {campaign && <CampaignBanner campaign={campaign} />}
+                {campaign && <CampaignBanner campaign={campaign} eligible={campaignEligible} variant="pricing" />}
 
                 {/* Error */}
                 {checkoutError && (
@@ -256,8 +244,19 @@ export default function PricingPage() {
 
                 {/* Plans Grid */}
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="rounded-xl border border-border/40 bg-muted/10 p-6 animate-pulse">
+                                <div className="h-4 w-24 rounded bg-muted/40" />
+                                <div className="mt-3 h-8 w-32 rounded bg-muted/40" />
+                                <div className="mt-6 space-y-2">
+                                    <div className="h-3 w-44 rounded bg-muted/40" />
+                                    <div className="h-3 w-36 rounded bg-muted/40" />
+                                    <div className="h-3 w-40 rounded bg-muted/40" />
+                                </div>
+                                <div className="mt-6 h-8 w-full rounded bg-muted/40" />
+                            </div>
+                        ))}
                     </div>
                 ) : plans.length === 0 ? (
                     <div className="text-center py-20 text-muted-foreground">
@@ -272,8 +271,57 @@ export default function PricingPage() {
                                 onSubscribe={handleSubscribe}
                                 loadingPlanId={loadingPlanId}
                                 campaign={campaign}
+                                campaignEligible={campaignEligible}
                             />
                         ))}
+                    </div>
+                )}
+
+                {comparisonFeatures.length > 0 && (
+                    <div className="mt-16">
+                        <div className="text-center mb-8 space-y-2">
+                            <Badge variant="outline" className="gap-1.5 px-3 py-1 text-xs">
+                                <Star className="h-3 w-3 text-primary" />
+                                Feature Comparison
+                            </Badge>
+                            <h2 className="text-2xl font-bold">Pick the plan that fits</h2>
+                            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+                                Compare the most requested features across plans at a glance.
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-separate border-spacing-0">
+                                <thead>
+                                    <tr>
+                                        <th className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4">Feature</th>
+                                        {plans.map((plan) => (
+                                            <th key={plan.id} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4">
+                                                {plan.name}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {comparisonFeatures.map((feature) => (
+                                        <tr key={feature} className="border-t border-border/40">
+                                            <td className="py-3 pr-4 text-sm text-foreground">{feature}</td>
+                                            {plans.map((plan) => (
+                                                <td key={plan.id} className="py-3 pr-4 text-sm">
+                                                    {plan.features.includes(feature) ? (
+                                                        <span className="inline-flex items-center gap-1 text-primary">
+                                                            <Check className="h-4 w-4" />
+                                                            Included
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 

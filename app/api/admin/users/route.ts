@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
         const userIds = rawUsers.map((u) => u._id!);
         const subscriptions = await db
             .collection(SUBSCRIPTIONS_COLLECTION)
-            .find({ userId: { $in: userIds }, status: "active" }, {
+            .find({ userId: { $in: userIds }, status: { $in: ["active", "pending"] } }, {
                 projection: { userId: 1, planName: 1, planSlug: 1, status: 1, endDate: 1 },
             })
             .toArray();
