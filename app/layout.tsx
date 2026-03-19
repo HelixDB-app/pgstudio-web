@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { CampaignBannerContainer } from "@/components/campaign-banner";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -33,7 +34,10 @@ export default function RootLayout({
           <div className="min-h-screen bg-black text-zinc-400 font-sans selection:bg-white/20 overflow-hidden">
             <CampaignBannerContainer variant="header" />
             <SiteHeader />
-            <div className="pt-16">{children}</div>
+            <div className="pt-16 flex flex-col min-h-screen">
+              {children}
+              <SiteFooter />
+            </div>
             <Toaster position="top-right" richColors />
           </div>
         </Providers>
