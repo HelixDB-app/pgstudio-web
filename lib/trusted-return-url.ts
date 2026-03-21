@@ -34,13 +34,37 @@ export function getTrustedBrowserOrigins(): string[] {
     return [...set];
 }
 
-function isLocalDevHostname(hostname: string): boolean {
-    return hostname === "localhost" || hostname === "127.0.0.1";
+/** True for http(s) loopback only (any port). Safe for OAuth-style returns to local dev / Tauri / Vite. */
+export function isLoopbackHttpUrl(u: URL): boolean {
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (u.username || u.password) return false;
+    const h = u.hostname;
+    return (
+        h === "localhost" ||
+        h === "127.0.0.1" ||
+        h === "::1" ||
+        h === "[::1]"
+    );
+}
+
+/** `Origin` header value, e.g. `http://localhost:1420` */
+export function isLoopbackBrowserOrigin(origin: string): boolean {
+    try {
+        return isLoopbackHttpUrl(new URL(origin));
+    } catch {
+        return false;
+    }
+}
+
+/** CORS + return validation: explicit allowlist or any loopback origin. */
+export function isBrowserOriginAllowed(origin: string): boolean {
+    return getTrustedBrowserOrigins().includes(origin) || isLoopbackBrowserOrigin(origin);
 }
 
 /**
  * Validate an absolute URL for safe external redirect (open-redirect safe).
- * In development, any http port on localhost / 127.0.0.1 is allowed.
+ * Allows configured origins plus any http(s) URL on localhost / 127.0.0.1 / ::1 (any port)
+ * so Tauri, Vite, and alternate Next ports work against hosted pgstudio-web.
  */
 export function sanitizeReturnUrl(raw: string | null | undefined): string | null {
     if (!raw?.trim()) return null;
@@ -60,7 +84,7 @@ export function sanitizeReturnUrl(raw: string | null | undefined): string | null
         return u.toString();
     }
 
-    if (process.env.NODE_ENV === "development" && isLocalDevHostname(u.hostname)) {
+    if (isLoopbackHttpUrl(u)) {
         return u.toString();
     }
 

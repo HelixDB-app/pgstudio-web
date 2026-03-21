@@ -1,5 +1,5 @@
 import type { NextResponse } from "next/server";
-import { getTrustedBrowserOrigins } from "@/lib/trusted-return-url";
+import { getTrustedBrowserOrigins, isBrowserOriginAllowed } from "@/lib/trusted-return-url";
 
 /** Allowed request origins for CORS (Helix web / desktop API clients). */
 export function getCorsAllowedOrigins(): string[] {
@@ -7,14 +7,13 @@ export function getCorsAllowedOrigins(): string[] {
 }
 
 export function getCorsHeaders(origin: string | null): Record<string, string> {
-    const allowed = getCorsAllowedOrigins();
     const base: Record<string, string> = {
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
         "Access-Control-Max-Age": "86400",
     };
 
-    if (origin && allowed.includes(origin)) {
+    if (origin && isBrowserOriginAllowed(origin)) {
         return {
             ...base,
             "Access-Control-Allow-Origin": origin,

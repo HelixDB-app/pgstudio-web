@@ -47,6 +47,7 @@ function CallbackInner() {
                 try {
                     const res = await fetch("/api/auth/validate-return-url", {
                         method: "POST",
+                        credentials: "include",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ url: returnToRaw }),
                     });
@@ -59,9 +60,27 @@ function CallbackInner() {
                         return;
                     }
 
+                    setStage("minting");
+                    const tokRes = await fetch("/api/auth/desktop-token", {
+                        method: "POST",
+                        credentials: "include",
+                    });
+                    if (!tokRes.ok) {
+                        const body = await tokRes.json().catch(() => ({}));
+                        throw new Error(
+                            (body as { error?: string }).error ?? `Token error (${tokRes.status})`
+                        );
+                    }
+                    const { token } = (await tokRes.json()) as { token: string };
+
                     setStage("redirecting");
-                    await new Promise((r) => setTimeout(r, 450));
-                    window.location.href = safe;
+                    await new Promise((r) => setTimeout(r, 350));
+
+                    // Hash is not sent to the Helix server; Helix stores JWT for Authorization: Bearer
+                    // (cross-origin session cookies are not available on fetch from localhost:3000).
+                    const dest = new URL(safe);
+                    dest.hash = `helix_account_jwt=${encodeURIComponent(token)}`;
+                    window.location.href = dest.toString();
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Could not verify redirect");
                     setStage("error");
@@ -83,7 +102,10 @@ function CallbackInner() {
         async function redirectToDesktop() {
             setStage("minting");
             try {
-                const res = await fetch("/api/auth/desktop-token", { method: "POST" });
+                const res = await fetch("/api/auth/desktop-token", {
+                    method: "POST",
+                    credentials: "include",
+                });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
                     throw new Error(body.error ?? `Server error (${res.status})`);
