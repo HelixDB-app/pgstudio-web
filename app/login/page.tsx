@@ -1,15 +1,40 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Database, Loader2, AlertCircle } from "lucide-react";
+import { Database, Loader2, AlertCircle, Monitor, Tablet } from "lucide-react";
+
+/** Where NextAuth should send the user after a successful sign-in. */
+function getPostLoginCallbackTarget(searchParams: URLSearchParams): string {
+    const source = searchParams.get("source");
+    const state = searchParams.get("state") ?? "";
+    const rawReturn =
+        searchParams.get("return_to")?.trim() ||
+        searchParams.get("callbackUrl")?.trim() ||
+        "";
+
+    if (source === "desktop") {
+        const q = new URLSearchParams({ source: "desktop" });
+        if (state) q.set("state", state);
+        return `/auth/callback?${q.toString()}`;
+    }
+
+    if (source === "web") {
+        if (rawReturn) {
+            return `/auth/callback?source=web&return_to=${encodeURIComponent(rawReturn)}`;
+        }
+        return "/profile";
+    }
+
+    return "/profile";
+}
 
 function LoginForm() {
     const { data: session, status } = useSession();
@@ -17,8 +42,13 @@ function LoginForm() {
     const searchParams = useSearchParams();
 
     const source = searchParams.get("source");
-    const state = searchParams.get("state");
     const isDesktop = source === "desktop";
+    const isWebShell = source === "web";
+
+    const postLoginTarget = useMemo(
+        () => getPostLoginCallbackTarget(searchParams),
+        [searchParams]
+    );
 
     const [tab, setTab] = useState<"signin" | "signup">("signin");
     const [email, setEmail] = useState("");
@@ -27,15 +57,12 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Redirect once authenticated
+    // Redirect once authenticated (e.g. user refreshed while logged in)
     useEffect(() => {
         if (status === "authenticated" && session) {
-            const callbackUrl = isDesktop
-                ? `/auth/callback?source=desktop&state=${state ?? ""}`
-                : "/profile";
-            router.replace(callbackUrl);
+            router.replace(postLoginTarget);
         }
-    }, [status, session, isDesktop, state, router]);
+    }, [status, session, router, postLoginTarget]);
 
     async function handleCredentials(e: React.FormEvent) {
         e.preventDefault();
@@ -48,15 +75,15 @@ function LoginForm() {
                 name: tab === "signup" ? name : undefined,
                 isSignUp: tab === "signup" ? "true" : "false",
                 redirect: false,
-                callbackUrl: isDesktop
-                    ? `/auth/callback?source=desktop&state=${state ?? ""}`
-                    : "/profile",
+                callbackUrl: postLoginTarget,
             });
 
             if (result?.error) {
                 setError(result.error === "CredentialsSignin" ? "Invalid email or password." : result.error);
             } else if (result?.url) {
                 router.replace(result.url);
+            } else {
+                router.replace(postLoginTarget);
             }
         } finally {
             setLoading(false);
@@ -66,9 +93,7 @@ function LoginForm() {
     async function handleGoogle() {
         setLoading(true);
         await signIn("google", {
-            callbackUrl: isDesktop
-                ? `/auth/callback?source=desktop&state=${state ?? ""}`
-                : "/profile",
+            callbackUrl: postLoginTarget,
         });
     }
 
@@ -83,20 +108,35 @@ function LoginForm() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
             <div className="w-full max-w-md space-y-6">
-                {/* Logo + Header */}
                 <div className="flex flex-col items-center gap-3 text-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
                         <Database className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">pgStudio</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm text-muted-foreground max-w-xs mx-auto">
                             {isDesktop
-                                ? "Sign in to sync your profile with the desktop app"
-                                : "Sign in to your account"}
+                                ? "Sign in to connect the desktop app to your account."
+                                : isWebShell
+                                  ? "Sign in once — we’ll send you back to pgStudio in your browser (Safari, iPad, or desktop)."
+                                  : "Sign in to your account"}
                         </p>
                     </div>
                 </div>
+
+                {isWebShell && (
+                    <div className="flex items-center justify-center gap-6 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-muted-foreground">
+                        <div className="flex flex-col items-center gap-1">
+                            <Monitor className="h-5 w-5" aria-hidden />
+                            <span className="text-[10px] uppercase tracking-wide">Desktop</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-10" />
+                        <div className="flex flex-col items-center gap-1">
+                            <Tablet className="h-5 w-5" aria-hidden />
+                            <span className="text-[10px] uppercase tracking-wide">iPad</span>
+                        </div>
+                    </div>
+                )}
 
                 <Card className="shadow-lg border-border/50">
                     <CardHeader className="pb-4">
@@ -120,10 +160,9 @@ function LoginForm() {
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                        {/* Google OAuth */}
                         <Button
                             variant="outline"
-                            className="w-full gap-2"
+                            className="w-full gap-2 h-11"
                             onClick={handleGoogle}
                             disabled={loading}
                         >
@@ -137,7 +176,6 @@ function LoginForm() {
                             <Separator className="flex-1" />
                         </div>
 
-                        {/* Error display */}
                         {error && (
                             <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -145,7 +183,6 @@ function LoginForm() {
                             </div>
                         )}
 
-                        {/* Credentials form */}
                         <Tabs value={tab} className="w-full">
                             <TabsContent value="signin" className="mt-0 space-y-3">
                                 <form onSubmit={handleCredentials} className="space-y-3">
@@ -158,6 +195,7 @@ function LoginForm() {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
+                                            className="h-11"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -169,13 +207,10 @@ function LoginForm() {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             required
+                                            className="h-11"
                                         />
                                     </div>
-                                    <Button
-                                        type="submit"
-                                        className="w-full"
-                                        disabled={loading}
-                                    >
+                                    <Button type="submit" className="w-full h-11" disabled={loading}>
                                         {loading ? (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         ) : null}
@@ -195,6 +230,7 @@ function LoginForm() {
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             required
+                                            className="h-11"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -206,6 +242,7 @@ function LoginForm() {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
+                                            className="h-11"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -218,13 +255,10 @@ function LoginForm() {
                                             onChange={(e) => setPassword(e.target.value)}
                                             minLength={8}
                                             required
+                                            className="h-11"
                                         />
                                     </div>
-                                    <Button
-                                        type="submit"
-                                        className="w-full"
-                                        disabled={loading}
-                                    >
+                                    <Button type="submit" className="w-full h-11" disabled={loading}>
                                         {loading ? (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         ) : null}
@@ -239,6 +273,12 @@ function LoginForm() {
                 {isDesktop && (
                     <p className="text-center text-xs text-muted-foreground">
                         After signing in, you&apos;ll be redirected back to the pgStudio desktop app.
+                    </p>
+                )}
+                {isWebShell && (
+                    <p className="text-center text-xs text-muted-foreground leading-relaxed">
+                        After sign-in, this page will close and return you to your local or hosted pgStudio
+                        UI. If you stay on the web, you can still manage your account from your profile.
                     </p>
                 )}
             </div>

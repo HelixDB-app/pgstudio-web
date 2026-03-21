@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
+import { sanitizeReturnUrl } from "@/lib/trusted-return-url";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
@@ -159,6 +160,8 @@ export const authOptions: NextAuthOptions = {
         async redirect({ url, baseUrl }) {
             if (url.startsWith(baseUrl)) return url;
             if (url.startsWith("/")) return `${baseUrl}${url}`;
+            const external = sanitizeReturnUrl(url);
+            if (external) return external;
             return baseUrl;
         },
     },
