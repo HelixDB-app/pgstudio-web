@@ -91,14 +91,29 @@ export async function GET(req: NextRequest) {
             ? (user.createdAt instanceof Date ? user.createdAt : new Date(user.createdAt)).toISOString()
             : new Date().toISOString();
 
-        return NextResponse.json({
+        const payload: Record<string, unknown> = {
             id: user._id!.toString(),
             name: user.name ?? "",
             email: user.email ?? "",
             image: user.image ?? null,
             provider: user.provider ?? "email",
             createdAt,
-        });
+        };
+
+        const dpSecret = process.env.DATA_PLANE_JWT_SECRET?.trim();
+        if (dpSecret) {
+            const signOpts: jwt.SignOptions = {
+                algorithm: "HS256",
+                expiresIn: "15m",
+            };
+            const iss = process.env.DATA_PLANE_JWT_ISSUER?.trim();
+            const aud = process.env.DATA_PLANE_JWT_AUDIENCE?.trim();
+            if (iss) signOpts.issuer = iss;
+            if (aud) signOpts.audience = aud;
+            payload.dataPlaneAccessToken = jwt.sign({ sub: auth.userId }, dpSecret, signOpts);
+        }
+
+        return NextResponse.json(payload);
     } catch (err) {
         console.error("[/api/user/me GET]", err);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
