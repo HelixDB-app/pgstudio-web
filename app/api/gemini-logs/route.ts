@@ -16,6 +16,7 @@ import { USERS_COLLECTION } from "@/models/User";
 import { SUBSCRIPTIONS_COLLECTION } from "@/models/Subscription";
 import type { ApiLogDocument, ApiFeatureType, ApiLogStatus } from "@/models/ApiLog";
 import { addApiLog } from "@/lib/api-log-queue";
+import { mirrorAiModelInvocation } from "@/lib/posthog-mirror";
 
 const LOG = "[gemini-logs]";
 
@@ -37,6 +38,9 @@ interface LogPayload {
     candidateTokens?: number;
     errorMessage?: string;
     errorCode?: number;
+    provider?: string;
+    stream?: boolean;
+    cached?: boolean;
 }
 
 async function resolveAuth(
@@ -159,4 +163,20 @@ async function enrichAndEnqueue(userId: string, body: LogPayload): Promise<void>
     };
 
     addApiLog(logDoc);
+
+    try {
+        mirrorAiModelInvocation(userId, {
+            model: body.model,
+            featureType: body.featureType,
+            endpoint: body.endpoint,
+            responseTime: body.responseTime,
+            status: body.status,
+            provider: body.provider,
+            stream: body.stream,
+            cached: body.cached,
+            errorMessage: body.errorMessage,
+        });
+    } catch (err) {
+        console.warn(`${LOG} PostHog mirror failed (non-fatal):`, err);
+    }
 }

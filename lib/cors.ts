@@ -9,7 +9,7 @@ export function getCorsAllowedOrigins(): string[] {
 export function getCorsHeaders(origin: string | null): Record<string, string> {
     const base: Record<string, string> = {
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-goog-api-key",
         "Access-Control-Max-Age": "86400",
     };
 

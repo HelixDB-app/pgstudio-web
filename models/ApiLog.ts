@@ -12,6 +12,11 @@ export type ApiFeatureType =
     | "schema-designer"
     | "sql-to-schema"
     | "query-error"
+    | "query-explain"
+    | "schema-doc"
+    | "git"
+    | "ai_command"
+    | "sql_completion"
     | "other";
 
 export interface ApiLogDocument {
