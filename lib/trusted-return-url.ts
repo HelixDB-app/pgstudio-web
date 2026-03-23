@@ -23,8 +23,8 @@ function parseOriginList(raw: string | undefined): string[] {
 /** Origins allowed for CORS + return URL validation (server). */
 export function getTrustedBrowserOrigins(): string[] {
     const set = new Set<string>([
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        "https://helixdb.vercel.app",
+        "https://helixdb.vercel.app",
     ]);
     for (const o of parseOriginList(process.env.AUTH_TRUSTED_RETURN_ORIGINS)) {
         set.add(o);
