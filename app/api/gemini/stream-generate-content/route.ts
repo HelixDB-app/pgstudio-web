@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCorsHeaders } from "@/lib/cors";
 import {
     consumeGeminiRateLimitSlot,
+    geminiRateLimitServiceErrorPayload,
     getClientIp,
 } from "@/lib/gemini-rate-limit";
 import { buildStreamGenerateContentUrl, isValidGeminiModelId } from "@/lib/gemini-proxy";
@@ -62,10 +63,7 @@ export async function POST(req: NextRequest) {
     const limit = await consumeGeminiRateLimitSlot(ip);
     if ("redisUnavailable" in limit && limit.redisUnavailable) {
         return attachCors(
-            NextResponse.json(
-                { error: { message: "Rate limit service unavailable. Try again later.", code: 503 } },
-                { status: 503 }
-            ),
+            NextResponse.json(geminiRateLimitServiceErrorPayload(), { status: 503 }),
             req
         );
     }

@@ -1,12 +1,18 @@
 /**
  * Sliding-window rate limit for Gemini proxy (Redis).
- * Fail closed on Redis errors (503) per security plan.
+ * Default: fail closed on Redis errors (503) so the proxy stays protected.
+ * Set GEMINI_RATE_LIMIT_FAIL_OPEN=true only when Redis is optional (e.g. local dev without Redis).
  */
 
 import type { NextRequest } from "next/server";
 import Redis from "ioredis";
 
 const REDIS_URI = process.env.REDIS_URI || process.env.REDIS_URL || "redis://localhost:6379";
+
+function failOpenWhenRedisDown(): boolean {
+    const v = process.env.GEMINI_RATE_LIMIT_FAIL_OPEN?.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "yes";
+}
 
 /** Max Gemini proxy calls per client IP per rolling window. */
 export const GEMINI_RATE_LIMIT_MAX = 10;
@@ -47,6 +53,8 @@ function getRedisClient(): Redis {
             maxRetriesPerRequest: 2,
             enableReadyCheck: true,
             lazyConnect: false,
+            connectTimeout: 5_000,
+            commandTimeout: 4_000,
         });
         g.__geminiRateLimitRedis.on("error", (err) => {
             console.warn("[gemini-rate-limit] Redis error:", err.message);
@@ -109,7 +117,29 @@ export async function consumeGeminiRateLimitSlot(clientIp: string): Promise<Gemi
         if (allowed) return { ok: true };
         return { ok: false, retryAfterSeconds: Math.max(1, retryAfter) };
     } catch (err) {
-        console.warn("[gemini-rate-limit] Redis eval failed (fail closed):", err);
+        console.warn("[gemini-rate-limit] Redis eval failed:", err);
+        if (failOpenWhenRedisDown()) {
+            return { ok: true };
+        }
         return { ok: false, redisUnavailable: true };
     }
+}
+
+/** JSON body + hint for clients when Redis is required but unreachable. */
+export function geminiRateLimitServiceErrorPayload(): {
+    error: {
+        message: string;
+        code: number;
+        details: string;
+    };
+} {
+    return {
+        error: {
+            message: "Rate limit service unavailable. Try again later.",
+            code: 503,
+            details:
+                "The Gemini proxy uses Redis (REDIS_URI or REDIS_URL) for per-IP limits. " +
+                "Provision Redis (e.g. Upstash) and set the connection string, or for local dev only set GEMINI_RATE_LIMIT_FAIL_OPEN=true.",
+        },
+    };
 }
