@@ -33,8 +33,11 @@ export function SiteFooter() {
           <Link href="/legal/terms" className="hover:text-white transition-colors">
             Terms of Service
           </Link>
+          <Link href="/support" className="hover:text-white transition-colors">
+            Support
+          </Link>
           <a href="mailto:support@pgstudio.app" className="hover:text-white transition-colors">
-            Contact
+            Email
           </a>
           <a href="#" className="hover:text-white transition-colors">Twitter</a>
           <a href="#" className="hover:text-white transition-colors">GitHub</a>

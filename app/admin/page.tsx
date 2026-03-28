@@ -9,6 +9,7 @@ import {
     ChevronLeft, ChevronRight, ExternalLink, Timer, ToggleLeft, ToggleRight,
     Activity, MonitorSmartphone, Clock, BarChart2, Download, Zap, TrendingUp,
     CheckCircle2, XCircle, AlertCircle, KanbanSquare, ClipboardList, MessageSquare,
+    LifeBuoy,
 } from "lucide-react";
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -77,6 +78,19 @@ interface BetaFeedbackListItem {
     contactEmail?: string;
     appVersion?: string;
     platform?: string;
+    createdAt: string;
+}
+
+interface SupportRequestListItem {
+    id: string;
+    name: string;
+    email: string;
+    topic: string;
+    subject: string;
+    message: string;
+    userId?: string;
+    userAgent?: string;
+    clientIp?: string;
     createdAt: string;
 }
 
@@ -1438,6 +1452,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const [betaFeedbackPages, setBetaFeedbackPages] = useState(1);
     const [betaFeedbackSearch, setBetaFeedbackSearch] = useState("");
 
+    // Support requests (website /support form)
+    const [supportRequestList, setSupportRequestList] = useState<SupportRequestListItem[]>([]);
+    const [loadingSupportRequests, setLoadingSupportRequests] = useState(false);
+    const [supportRequestPage, setSupportRequestPage] = useState(1);
+    const [supportRequestTotal, setSupportRequestTotal] = useState(0);
+    const [supportRequestPages, setSupportRequestPages] = useState(1);
+    const [supportRequestSearch, setSupportRequestSearch] = useState("");
+
     // Trial
     const [trialSettings, setTrialSettings] = useState<{ trialEnabled: boolean; trialDurationDays: number } | null>(null);
     const [trialStats, setTrialStats] = useState<{ total: number; active: number; expired: number; blocked: number } | null>(null);
@@ -1558,6 +1580,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             setLoadingBetaFeedback(false);
         }
     }, [betaFeedbackSearch]);
+
+    const fetchSupportRequests = useCallback(async (page = 1) => {
+        setLoadingSupportRequests(true);
+        try {
+            const params = new URLSearchParams({ page: String(page), limit: "25" });
+            if (supportRequestSearch.trim()) params.set("search", supportRequestSearch.trim());
+            const r = await fetch(`/api/admin/support-requests?${params}`);
+            if (r.ok) {
+                const d = await r.json();
+                setSupportRequestList(d.list ?? []);
+                setSupportRequestTotal(d.total ?? 0);
+                setSupportRequestPages(d.pages ?? 1);
+            }
+        } finally {
+            setLoadingSupportRequests(false);
+        }
+    }, [supportRequestSearch]);
 
     const fetchTrialData = useCallback(async () => {
         setLoadingTrial(true);
@@ -1719,6 +1758,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                         </TabsTrigger>
                         <TabsTrigger value="beta-feedback" className="gap-2" onClick={() => { if (!loadingBetaFeedback && betaFeedbackList.length === 0) fetchBetaFeedback(1); }}>
                             <MessageSquare className="h-4 w-4" /> Feedback
+                        </TabsTrigger>
+                        <TabsTrigger value="support-requests" className="gap-2" onClick={() => { if (!loadingSupportRequests && supportRequestList.length === 0) fetchSupportRequests(1); }}>
+                            <LifeBuoy className="h-4 w-4" /> Support
                         </TabsTrigger>
                         <TabsTrigger value="trial" className="gap-2" onClick={() => { if (!trialStats) fetchTrialData(); }}>
                             <Timer className="h-4 w-4" /> Free Trial
@@ -2289,6 +2331,102 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                                 <span className="text-xs text-muted-foreground">Page {betaFeedbackPage} of {betaFeedbackPages}</span>
                                                 <Button variant="outline" size="sm" disabled={betaFeedbackPage >= betaFeedbackPages}
                                                     onClick={() => { const p = betaFeedbackPage + 1; setBetaFeedbackPage(p); fetchBetaFeedback(p); }}>
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* ── Support requests (website) ─────────────────────────── */}
+                    <TabsContent value="support-requests">
+                        <Card className="border-border/50">
+                            <CardHeader className="pb-4">
+                                <div className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-base">Support requests</CardTitle>
+                                        <CardDescription>Submissions from the public /support contact form</CardDescription>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => fetchSupportRequests(supportRequestPage)}>
+                                        <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+                                    </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-3">
+                                    <div className="relative flex-1 min-w-[180px]">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Input
+                                            className="pl-8 h-8 text-xs"
+                                            placeholder="Search name, email, subject, message…"
+                                            value={supportRequestSearch}
+                                            onChange={(e) => setSupportRequestSearch(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === "Enter") { setSupportRequestPage(1); fetchSupportRequests(1); } }}
+                                        />
+                                    </div>
+                                    <Button size="sm" variant="outline" className="h-8" onClick={() => { setSupportRequestPage(1); fetchSupportRequests(1); }}>
+                                        <Filter className="h-3.5 w-3.5 mr-1" /> Apply
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {loadingSupportRequests ? (
+                                    <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                                ) : supportRequestList.length === 0 ? (
+                                    <div className="py-12 text-center text-muted-foreground">
+                                        <LifeBuoy className="h-8 w-8 mx-auto mb-3 opacity-40" />
+                                        <p className="text-sm">No support requests yet.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="space-y-3">
+                                            {supportRequestList.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-2"
+                                                >
+                                                    <div className="flex flex-wrap items-center gap-2 justify-between gap-y-1">
+                                                        <div className="min-w-0">
+                                                            <span className="font-medium text-sm">{item.name}</span>
+                                                            <span className="text-xs text-muted-foreground ml-2 break-all">
+                                                                {item.email}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                                            <Badge variant="secondary" className="text-[10px]">{item.topic}</Badge>
+                                                            {item.userId && (
+                                                                <Badge variant="outline" className="text-[10px] max-w-[140px] truncate" title={item.userId}>
+                                                                    user linked
+                                                                </Badge>
+                                                            )}
+                                                            <span className="text-[11px] text-muted-foreground">
+                                                                {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-foreground">{item.subject}</p>
+                                                    <p className="text-sm whitespace-pre-wrap break-words">{item.message}</p>
+                                                    {(item.userAgent || item.clientIp) && (
+                                                        <p className="text-[11px] text-muted-foreground font-mono break-all">
+                                                            {item.clientIp && <>IP: {item.clientIp}</>}
+                                                            {item.clientIp && item.userAgent && " · "}
+                                                            {item.userAgent && <span className="line-clamp-2">{item.userAgent}</span>}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center justify-between mt-4">
+                                            <p className="text-xs text-muted-foreground">{supportRequestTotal} total</p>
+                                            <div className="flex items-center gap-3">
+                                                <Button variant="outline" size="sm" disabled={supportRequestPage <= 1}
+                                                    onClick={() => { const p = supportRequestPage - 1; setSupportRequestPage(p); fetchSupportRequests(p); }}>
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <span className="text-xs text-muted-foreground">Page {supportRequestPage} of {supportRequestPages}</span>
+                                                <Button variant="outline" size="sm" disabled={supportRequestPage >= supportRequestPages}
+                                                    onClick={() => { const p = supportRequestPage + 1; setSupportRequestPage(p); fetchSupportRequests(p); }}>
                                                     <ChevronRight className="h-4 w-4" />
                                                 </Button>
                                             </div>

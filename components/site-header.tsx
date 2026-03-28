@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { Bug, Database, Download, LogOut, User } from "lucide-react";
+import { Bug, Database, Download, LifeBuoy, LogOut, User } from "lucide-react";
 import gsap from "gsap";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { useSession, signOut } from "next-auth/react";
@@ -100,6 +100,9 @@ export function SiteHeader() {
           <Link href="/changelog" className="hover:text-white transition-colors">
             Changelog
           </Link>
+          <Link href="/support" className="hover:text-white transition-colors">
+            Support
+          </Link>
           <Link href="/report-bug" className="hover:text-white transition-colors">
             Report a Bug
           </Link>
@@ -147,6 +150,12 @@ export function SiteHeader() {
                   <Link href="/profile" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
                     <span>View profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/support" className="flex items-center gap-2">
+                    <LifeBuoy className="w-4 h-4" />
+                    <span>Support</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
